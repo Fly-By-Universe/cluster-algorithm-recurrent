@@ -9,6 +9,7 @@ X = X.iloc[:,:-1]
 k = 10
 X = X
 
+
 def euclidean(point1,point2):
     """计算欧几里得距离"""
     return np.sqrt(np.sum((point1 - point2)**2))
@@ -47,6 +48,8 @@ result_density,result_neightbor = Al_1_DEA(X,k)
 # result_neightbor 是一个二维列表，其中包含每个点最近的k个点的索引
 print(result_neightbor)
 
+# ---------------------------------------------------------------------------------------我是分割线---------------------------------------------------------------------
+
 
 def Density_chains(result_density,result_neightbor):
     density_chains = []
@@ -65,13 +68,13 @@ def Density_chains(result_density,result_neightbor):
                 
             else:
                 break
-        if len(chain) > 1:
-            density_chains.append(chain)
+        density_chains.append(chain)
             
     return density_chains
 
 result_chains = Density_chains(result_density,result_neightbor)
 print(result_chains)
+
 
 
 def Centrality(result_chains):
@@ -90,10 +93,9 @@ result_Centrality = Centrality(result_chains)
 print(result_Centrality)
 
 
-
-
 def Density_group_discovery(result_chains):
     """ 把密度链分为密度组 (Density group discovery) """
+    
     # 初始化一个字典来存储每个点所属的密度组
     density_groups = {}
     # 初始化一个字典来存储每个点及其连接的其他点
@@ -105,9 +107,10 @@ def Density_group_discovery(result_chains):
             if point not in adjacency_list:
                 adjacency_list[point] = set()
             adjacency_list[point].update(chain)
-            adjacency_list[point].remove(point)  # 移除自己避免自连接
+            adjacency_list[point].remove(point)  
+            #移除自己避免自连接
     
-    # DFS 函数来标记所有连通的节点
+    # DFS,标记所有连通的节点
     def dfs(node, group_id):
         stack = [node]
         while stack:
@@ -121,9 +124,50 @@ def Density_group_discovery(result_chains):
     # 遍历所有节点，执行 DFS
     for point in adjacency_list.keys():
         if point not in density_groups:
-            group_id = len(groups)  # 新的组ID
+            group_id = len(groups)
             dfs(point, group_id)
             groups.append([key for key, value in density_groups.items() if value == group_id])
     
     return groups
-a = Density_group_discovery(result_chains)
+density_groups = Density_group_discovery(result_chains)
+print(density_groups)
+
+
+def AL_2_DT(result_chains,result_Centrality,density_groups):
+    """算法2： 密度追踪算法"""
+    density_chain = result_chains.copy()
+    density_centrality = result_Centrality.copy()
+    density_group = density_groups.copy()
+    return density_chain,density_centrality,density_group
+# 算法2返回密度链条、密度中心性、密度组
+
+
+# ---------------------------------------------------------------------------------------我是分割线---------------------------------------------------------------------
+
+def Impurity_1(X,result_chains):
+    """ 计算不纯度Impurity1 """
+    Inpurity_1  = []
+    for i in range(len(X)):
+        Prob = len(result_chains[i]) /( k + 1)
+        Inpurity_1.append(1 - Prob**2)
+    return Inpurity_1
+
+def Impurity_2(X,result_chains,density_groups): 
+    """ 计算不纯度Impurity2 """
+    Inpurity_2  = []
+    for i in range(len(X)):
+        Inpurity_2.append(1 - (result_density[i]/ result_density[result_chains[i][-1]]))
+    return Inpurity_2
+
+x1 = Impurity_1(X,result_chains)  
+x2 = Impurity_2(X,result_chains,density_groups)
+
+def Impurity(x1,x2):
+    """ 计算不纯度Impurity """
+    Impurity = []
+    for i in range(len(x1)):
+        Impurity.append(x1[i] * x2[i])
+    return Impurity
+
+Impurity_total = Impurity(x1,x2)
+print(Impurity_total)
