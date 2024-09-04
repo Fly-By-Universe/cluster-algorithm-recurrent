@@ -7,8 +7,6 @@ import pandas as pd
 X = pd.read_csv("C:\\Users\\DELL\\OneDrive\\桌面\\算法复现\\iris.data",header=None)
 X = X.iloc[:,:-1]
 k = 10
-X = X
-
 
 def euclidean(point1,point2):
     """计算欧几里得距离"""
@@ -26,7 +24,6 @@ def k_nearest_neighbors(x,X,k):
     nearest_indices = [index for index, _ in sorted_distances_index_pairs[1:k+1]]
     return nearest_indices
 
-
 def d(x,x_distance):
     """计算最大密度"""
     return max(x_distance) # 返回x_distance中距离的最大值
@@ -43,17 +40,13 @@ def Al_1_DEA(X,k):
     return Density,nearest_neightbor
 
 
-result_density,result_neightbor = Al_1_DEA(X,k)
-# result_density 是一个一维列表，其中包含每个点的密度
-# result_neightbor 是一个二维列表，其中包含每个点最近的k个点的索引
-print(result_neightbor)
-
 # ---------------------------------------------------------------------------------------我是分割线---------------------------------------------------------------------
 
 
-def Density_chains(result_density,result_neightbor):
-    density_chains = []
+def Density_chains(X,k):
     """ 算法2 : 找到一条密度链 xi -> xj -> xk (Density following) """
+    result_density,result_neightbor = Al_1_DEA(X,k)
+    density_chains = []
     for i in range(len(X)):
         chain = []
         chain.append(i)
@@ -68,18 +61,16 @@ def Density_chains(result_density,result_neightbor):
                 
             else:
                 break
-        density_chains.append(chain)
-            
+        density_chains.append(chain)        
     return density_chains
 
-result_chains = Density_chains(result_density,result_neightbor)
-print(result_chains)
 
 
 
-def Centrality(result_chains):
+def Centrality(X,k):
     """ 计算中心距离 (Centrality) """
     number_counts = {}
+    result_chains = Density_chains(X,k)
     for row in result_chains:
         for number in row:
             if number in number_counts:
@@ -88,14 +79,9 @@ def Centrality(result_chains):
                 number_counts[number] = 1
     return number_counts
 
-result_Centrality = Centrality(result_chains)
-
-print(result_Centrality)
-
-
-def Density_group_discovery(result_chains):
+def Density_group_discovery(X,k):
     """ 把密度链分为密度组 (Density group discovery) """
-    
+    result_chains = Density_chains(X,k)
     # 初始化一个字典来存储每个点所属的密度组
     density_groups = {}
     # 初始化一个字典来存储每个点及其连接的其他点
@@ -129,45 +115,72 @@ def Density_group_discovery(result_chains):
             groups.append([key for key, value in density_groups.items() if value == group_id])
     
     return groups
-density_groups = Density_group_discovery(result_chains)
-print(density_groups)
 
 
-def AL_2_DT(result_chains,result_Centrality,density_groups):
+def AL_2_DT(X,k):
     """算法2： 密度追踪算法"""
+    result_chains = Density_chains(X,k)
+    result_Centrality = Centrality(X,k)
+    density_groups = Density_group_discovery(X,k)
+    
     density_chain = result_chains.copy()
     density_centrality = result_Centrality.copy()
     density_group = density_groups.copy()
+    
     return density_chain,density_centrality,density_group
+
 # 算法2返回密度链条、密度中心性、密度组
 
 
 # ---------------------------------------------------------------------------------------我是分割线---------------------------------------------------------------------
 
-def Impurity_1(X,result_chains):
+def Impurity_1(X,k):
     """ 计算不纯度Impurity1 """
     Inpurity_1  = []
+    result_chains = Density_chains(X,k)
     for i in range(len(X)):
         Prob = len(result_chains[i]) /( k + 1)
         Inpurity_1.append(1 - Prob**2)
     return Inpurity_1
 
-def Impurity_2(X,result_chains,density_groups): 
+def Impurity_2(X,k): 
     """ 计算不纯度Impurity2 """
     Inpurity_2  = []
+    result_density,result_neightbor = Al_1_DEA(X,k)
+    result_chains = Density_chains(X,k)
     for i in range(len(X)):
         Inpurity_2.append(1 - (result_density[i]/ result_density[result_chains[i][-1]]))
     return Inpurity_2
 
-x1 = Impurity_1(X,result_chains)  
-x2 = Impurity_2(X,result_chains,density_groups)
-
-def Impurity(x1,x2):
+def Impurity(X,k):
     """ 计算不纯度Impurity """
+    x1 = Impurity_1(X,k)  
+    x2 = Impurity_2(X,k)
     Impurity = []
     for i in range(len(x1)):
         Impurity.append(x1[i] * x2[i])
     return Impurity
 
-Impurity_total = Impurity(x1,x2)
-print(Impurity_total)
+Impurity_result = Impurity(X,k)
+
+def AL_3_Pp(X,K_UPPER):
+    """算法3：Pre-processing algorithm"""
+    t = 1
+    r = 0.95
+    Global_Density = [0]*len(X)
+    Global_Impurity = [0]*len(X)
+
+    for k in K_UPPER:
+        Density,Density_neightbor = Al_1_DEA(X,k)
+        DensityChains,Centrality,DensityGroups = AL_2_DT(X,k)
+        Impurity_total = Impurity(X,k)
+        for j in range(len(X)):
+            Global_Impurity[j] =Global_Impurity[j] + (r**(k + 1 - t)) * Impurity_total[j]
+            Global_Density[j] =Global_Density[j] + (r**(k + 1 - t))* Density[j]
+        t+=1
+    return Global_Impurity,Global_Density
+K_UPPER = [k]
+x,y = AL_3_Pp(X,K_UPPER)
+print(x,y)
+
+# ---------------------------------------------------------------------------------------我是分割线---------------------------------------------------------------------
