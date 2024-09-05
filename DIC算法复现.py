@@ -184,3 +184,80 @@ x,y = AL_3_Pp(X,K_UPPER)
 print(x,y)
 
 # ---------------------------------------------------------------------------------------我是分割线---------------------------------------------------------------------
+
+DensityGroups = Density_group_discovery(X,k)
+centrality  = Centrality(X,k)
+Density,Density_neightbor = Al_1_DEA(X,k)
+
+def sum_centrality(X,k):
+    """ 求一条链上所有点的中心距的和 """
+    Sum_Centrality = []
+    result_chains = Density_chains(X,k)
+    for i in range(len(result_chains)):
+        sum = 0
+        for j in result_chains[i]:
+            sum += centrality[j]
+        Sum_Centrality.append(sum)
+    return Sum_Centrality #返回每个链上所有点的中心距的和，是一个列表
+
+
+def AL_4_CSA(X,k,Impurity_result):
+    """ 算法4：Cluster Sampling Algorithm """
+    lambda_ = 100
+    sampling_rate = 3
+    density_drop_rate = 0.8
+    sets = set()
+    
+    impurity = Impurity_result  #代表不纯度结果
+    combined = list(zip(X.iterrows(), impurity))
+    sorted_combined = sorted(combined, key=lambda item: item[1], reverse=True)
+    X_sorted, impurity_sorted = zip(*sorted_combined) # 解压后的DataFrame X_sorted 和 library impurity_sorted
+    limit = lambda_ // 3
+    result_chains = Density_chains(X,k)
+
+    for i in range(limit):
+        minimum_x_to = 10**10
+        index  =10**3
+        x_from = X_sorted[0][0]  # x_from 为一个Series
+        #x_from_index = x_from.name  # x_from.name 是该行在原始 DataFrame X 中的索引标签
+        #x_from = x_from_index
+
+        end_index = result_chains[x_from][-1]
+
+        if  x_from != end_index:
+            x_end = result_chains[end_index][-1]
+            x_to = 10**4
+            for j in range(2,len(result_chains[x_from])+1):
+                x_to = result_chains[x_from][j-1]
+                if Density[x_to] >= density_drop_rate * Density[x_end]:
+                    break
+                # end if
+            #end for
+            from_ = X.iloc[x_from]
+            to_ = X.iloc[x_to]
+
+            sets.update((tuple(from_),tuple(to_)) )
+            
+            mid_para = euclidean(from_,to_)
+            if mid_para < minimum_x_to:
+                minimum_x_to = mid_para
+                index = x_to
+
+            sets.update((tuple(from_),tuple(to_)))
+    #end for
+
+    limit = lambda_ // (3*sampling_rate)
+    for i in range(1,limit+1):
+        a = sum_centrality(X,k)
+        chain =  result_chains[a.index(max(a))]
+        step = len(chain) // sampling_rate
+        for j in range(0,sampling_rate-1):
+            x_from = chain[j*step]
+            x_to = chain[(j+1)*step]
+            sets.update((tuple(X.iloc[x_from]),tuple(X.iloc[x_to])) )
+        for _ in chain:
+            centrality[_] = 0
+
+    return sets
+        
+ans___ = AL_4_CSA(X,k,Impurity_result)
